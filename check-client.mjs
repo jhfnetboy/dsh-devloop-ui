@@ -1,14 +1,16 @@
 /**
  * Offline contract check for the dsh-devloop-ui client half.
  *
- * Evaluates client.js against a stub module loader and a stub `slots` service,
+ * Evaluates client.js against a stub module loader, `slots` service, and React,
  * so a broken registration is caught here instead of after a Desktop restart.
- * It asserts the loader id, the exported face, the slot options, and that the
- * button's onClick opens the dashboard path.
+ * Covers both slot occupants: the sidebar button (loader id, exported face, slot
+ * options, onClick target) and the settings section (slot options, and that its
+ * "open full dashboard" action opens the right path and closes the panel).
  */
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
-const CLIENT = '/Users/jason/Dev/jhfnetboy/dsh-devloop-ui/client.js'
+const CLIENT = fileURLToPath(new URL('./client.js', import.meta.url))
 
 let registration
 const opened = []
@@ -27,8 +29,9 @@ if (registration.id !== 'dsh-devloop-ui') {
 if (typeof registration.factory !== 'function') throw new Error('registration.factory is not a function')
 
 const React = {
-  createElement: (type, props, ...children) => ({ type, props, children }),
+  createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
   useState: (initial) => [initial, () => {}],
+  useEffect: () => {},
 }
 
 const face = registration.factory((specifier) => {
@@ -43,7 +46,7 @@ console.log('exports       :', Object.keys(face).join(', '))
 console.log('inject        :', JSON.stringify(face.inject))
 
 const calls = []
-let component
+const components = {}
 const ctx = {
   slots: {
     inject(name, callback) {
@@ -52,7 +55,7 @@ const ctx = {
     },
     register(options, registered) {
       calls.push({ kind: 'register', name: options.name, id: options.id, order: options.order, label: options.label })
-      component = registered
+      components[options.name] = registered
       return () => {}
     },
   },
@@ -61,18 +64,20 @@ const ctx = {
 face.apply(ctx)
 console.log('slot calls    :', JSON.stringify(calls))
 
-const injected = calls.find((c) => c.kind === 'inject')
-if (injected?.name !== 'sidebar.footer.action') throw new Error(`injected the wrong slot: ${String(injected?.name)}`)
-const registered = calls.find((c) => c.kind === 'register')
-if (registered?.name !== 'sidebar.footer.action') throw new Error('registered into the wrong slot')
-if (typeof registered.id !== 'string' || registered.id === '') {
+// --- sidebar.footer.action -------------------------------------------------
+
+const sidebarInject = calls.find((c) => c.kind === 'inject' && c.name === 'sidebar.footer.action')
+if (!sidebarInject) throw new Error('did not inject sidebar.footer.action')
+const sidebarRegister = calls.find((c) => c.kind === 'register' && c.name === 'sidebar.footer.action')
+if (!sidebarRegister) throw new Error('did not register into sidebar.footer.action')
+if (typeof sidebarRegister.id !== 'string' || sidebarRegister.id === '') {
   throw new Error('a list slot requires options.id')
 }
-if (typeof component !== 'function') throw new Error('no component was registered')
+const sidebarAction = components['sidebar.footer.action']
+if (typeof sidebarAction !== 'function') throw new Error('no component was registered for sidebar.footer.action')
 
 for (const wide of [true, false]) {
-  const element = component({ wide })
-  const button = element
+  const button = sidebarAction({ wide })
   if (button.type !== 'button') throw new Error(`expected a button, got ${String(button.type)}`)
   if (button.props['aria-label'] !== 'DevLoop') throw new Error('button is missing its aria-label')
   const before = opened.length
@@ -81,8 +86,44 @@ for (const wide of [true, false]) {
   const [path, target] = opened.at(-1)
   if (path !== '/devloop/') throw new Error(`opened ${String(path)} instead of /devloop/`)
   if (target !== '_blank') throw new Error(`opened with target ${String(target)}`)
-  const kids = element.children.filter(Boolean)
+  const kids = button.children.filter(Boolean)
   console.log(`render wide=${String(wide)} :`, `children=${String(kids.length)}`, `gap=${String(button.props.style.gap ?? 'n/a')}`)
 }
 
-console.log('\nOK: client half satisfies the loader and slot contracts.')
+// --- settings.section --------------------------------------------------------
+
+const settingsInject = calls.find((c) => c.kind === 'inject' && c.name === 'settings.section')
+if (!settingsInject) throw new Error('did not inject settings.section')
+const settingsRegister = calls.find((c) => c.kind === 'register' && c.name === 'settings.section')
+if (!settingsRegister) throw new Error('did not register into settings.section')
+if (typeof settingsRegister.id !== 'string' || settingsRegister.id === '') {
+  throw new Error('a list slot requires options.id')
+}
+const settingsSection = components['settings.section']
+if (typeof settingsSection !== 'function') throw new Error('no component was registered for settings.section')
+
+function findAll(node, predicate, out = []) {
+  if (!node || typeof node !== 'object') return out
+  if (predicate(node)) out.push(node)
+  for (const child of node.children || []) findAll(child, predicate, out)
+  return out
+}
+
+let closed = false
+const panel = settingsSection({ close: () => { closed = true } })
+if (panel.type !== 'div') throw new Error(`expected the section root to be a div, got ${String(panel.type)}`)
+
+const buttons = findAll(panel, (n) => n.type === 'button')
+const openButton = buttons.find((b) => (b.children || []).some((c) => c === 'Open full dashboard →'))
+if (!openButton) throw new Error('settings section has no "Open full dashboard" button')
+
+const before = opened.length
+openButton.props.onClick()
+if (opened.length !== before + 1) throw new Error('open-dashboard button did not open a window')
+const [path] = opened.at(-1)
+if (path !== '/devloop/') throw new Error(`open-dashboard button opened ${String(path)} instead of /devloop/`)
+if (!closed) throw new Error('open-dashboard button did not call close()')
+
+console.log('settings.section: renders with a close-on-open dashboard button')
+
+console.log('\nOK: client half satisfies the loader and slot contracts (both slots).')
