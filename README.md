@@ -8,6 +8,11 @@ appear in the app's chrome. Nothing in DevLoop changes: this is its companion
 UI half, kept separate so it can be installed, removed, or rewritten without a
 DevLoop release.
 
+`HANDOFF.md` is the brief for folding this capability into `@jhfnetboy/dsh-devloop`
+itself, as a native Settings section. It documents the two-half package contract,
+the client bundle format, the slot rules, DevLoop's HTTP API, and the constraints
+that are easy to get wrong.
+
 ## What it does
 
 Registers one occupant into the `sidebar.footer.action` slot — an icon button in
