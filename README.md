@@ -1,6 +1,7 @@
 # dsh-devloop-ui
 
-A sidebar entry that opens the [DevLoop](../../DevLoop) dashboard inside DSH Desktop.
+Native DSH Desktop surfaces for the [DevLoop](../../DevLoop) dashboard: a sidebar
+entry, and a Settings overview.
 
 This package exists because DevLoop's dashboard is a route on the Harness origin
 (`/devloop/`) rather than a Harness UI plugin, and a host-only plugin cannot
@@ -8,21 +9,30 @@ appear in the app's chrome. Nothing in DevLoop changes: this is its companion
 UI half, kept separate so it can be installed, removed, or rewritten without a
 DevLoop release.
 
-`HANDOFF.md` is the brief for folding this capability into `@jhfnetboy/dsh-devloop`
-itself, as a native Settings section. It documents the two-half package contract,
-the client bundle format, the slot rules, DevLoop's HTTP API, and the constraints
-that are easy to get wrong.
+`HANDOFF.md` documents the two-half package contract, the client bundle format,
+the slot rules, DevLoop's HTTP API, and the constraints that are easy to get
+wrong. Both slots below follow it.
 
 ## What it does
 
-Registers one occupant into the `sidebar.footer.action` slot — an icon button in
-the sidebar footer (icon plus label when the sidebar is expanded, icon only in
-the collapsed rail). Clicking it opens `/devloop/` in a new window.
+Registers two occupants:
 
-It opens a window rather than embedding the dashboard because the dashboard
-answers with `x-frame-options: DENY` and `frame-ancestors 'none'`. The window is
-an app window, not the system browser: DSH Desktop's `isTrustedAppUrl` treats
-every `127.0.0.1` / `localhost` URL as trusted and allows it in-app.
+- `sidebar.footer.action` — an icon button in the sidebar footer (icon plus
+  label when the sidebar is expanded, icon only in the collapsed rail).
+  Clicking it opens `/devloop/` in a new window.
+- `settings.section` — a lean overview in Settings: each registered project's
+  name, status (needs you / running / idle / done, mirroring the dashboard's
+  own `lane` classification), and today's total spend. It only reads
+  `GET /devloop/api/projects` (same-origin `fetch`, polled every 5s while the
+  panel is open) — starting a project, answering a question, and everything
+  else stays in the dashboard, one click away via "Open full dashboard →" or
+  by clicking a project row (which opens straight to that project).
+
+Both open the dashboard as a window rather than embedding it, because the
+dashboard answers with `x-frame-options: DENY` and `frame-ancestors 'none'`.
+The window is an app window, not the system browser: DSH Desktop's
+`isTrustedAppUrl` treats every `127.0.0.1` / `localhost` URL as trusted and
+allows it in-app.
 
 ## Layout
 
@@ -62,5 +72,7 @@ Removing it:
 node check-client.mjs
 ```
 
-Stub-evaluates `client.js` against the loader and slot contracts: loader id,
-exported face, injected slot, list-slot `id`, and the button's `onClick` target.
+Stub-evaluates `client.js` against the loader and slot contracts for both
+occupants: loader id, exported face, each injected slot, each list-slot `id`,
+the sidebar button's `onClick` target, and the settings section's "Open full
+dashboard" action (opens `/devloop/` and calls `close()`).

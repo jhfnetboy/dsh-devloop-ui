@@ -2,11 +2,13 @@
 
 Audience: whoever maintains `@jhfnetboy/dsh-devloop`.
 
-This repo (`dsh-devloop-ui`) is the **verified minimal reference**: it implements
-the `sidebar.footer.action` half of the work below. Read `client.js` first — it is
-~140 lines, and every contract in this document is exercised by
-`check-client.mjs`. The `settings.section` half is the same shape with a different
-slot.
+This repo (`dsh-devloop-ui`) is the **verified minimal reference**: it now
+implements both `sidebar.footer.action` and `settings.section`. Read `client.js`
+first, and every contract in this document is exercised by `check-client.mjs`
+(run `node check-client.mjs` — no Desktop install required). The two slots share
+one bundle and one `apply(ctx)`; the section's own state (project list, lane,
+spend) is read from `GET /devloop/api/projects` on a 5s poll while it is open,
+per §4 below.
 
 ## Context
 
