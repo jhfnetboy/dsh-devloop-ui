@@ -13,6 +13,11 @@ DevLoop release.
 the slot rules, DevLoop's HTTP API, and the constraints that are easy to get
 wrong. Both slots below follow it.
 
+Neither slot below is the main content area: a sidebar button and a Settings
+section are a launcher and a side panel. For a **page** in the app — a tab beside
+Chat and Trajectory that fills the view area — register into `conversation.view`;
+see §3 of `HANDOFF.md`.
+
 ## What it does
 
 Registers two occupants:

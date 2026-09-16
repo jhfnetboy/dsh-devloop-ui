@@ -127,14 +127,56 @@ no parent has declared **throws** (`slot "x" is not declared`).
 
 | slot | kind | props | notes |
 | --- | --- | --- | --- |
-| `settings.section` | list | `{ close }` | **Recommended.** A full section in Settings with its own left-nav entry. Declared by `dsh-client-ui-settings-general`. |
+| `conversation.view` | list | `{ viewRequest, openView, completeViewRequest }` | **A real page.** A top-level tab beside Chat and Trajectory that renders the whole main view area when active. `scope: "session"`. Declared by `dsh-client-ui-conversation`. |
+| `settings.section` | list | `{ close }` | A full section in Settings with its own left-nav entry. Declared by `dsh-client-ui-settings-general`. Good for configuration; a section is not the main area. |
 | `settings.plugin.item` | keyed | — | A config card keyed by the settings namespace it edits; renders in the Plugins settings tab. |
 | `sidebar.footer.action` | list | `{ wide }` | Sidebar footer. **Already occupied** by `dsh-client-ui-cordis` with a 28×28 icon button. |
 | `sidebar.settings`, `sidebar.workspaces`, `sidebar.brand.*` | single | — | Already occupied; registering at the same priority throws. |
-| `conversation.view`, `conversation.composer.dock`, `conversation.input.dock` | — | — | Conversation-area panels. |
+| `conversation.composer.dock`, `conversation.input.dock`, `conversation.input.left/right` | list | — | Composer-area panels. |
 
-**There is no top-level route or full-page slot.** A plugin cannot claim the main
-content area; a Settings section is the closest thing to "a page".
+**`conversation.view` is the slot to use for the main UI** — it is how the app's own
+tabs are built, and it is not a panel. Both facts below are read from the shipped
+packages, not inferred:
+
+```js
+// dsh-client-ui-conversation: the main-area tab strip is built from this slot.
+const viewTabs = () => {
+  const tabs = [];
+  for (const entry of slots.entries('conversation.view')) {
+    if (entry.options.id === void 0) continue;
+    tabs.push({
+      id: entry.options.id,
+      label: resolveSlotLabel(entry.options.label) ?? entry.options.id,
+    });
+  }
+  return tabs;
+};
+```
+
+```js
+// dsh-client-ui-conversation: the active entry renders the whole view area.
+React.createElement('div', {
+  className: ConversationRoot_module_css_default.viewArea,
+  children: active !== undefined && renderSlot(
+    'conversation.view',
+    { viewRequest, openView, completeViewRequest },
+    { only: active.id },
+  ),
+})
+```
+
+So `{ name: 'conversation.view', id: 'devloop', order: 20, label: 'DevLoop' }` yields
+a third tab after `chat` (`id: 'chat'`, `order: 0`) and `trajectory`
+(`id: 'trajectory'`, `order: 10`), and that component fills the view area. `label`
+goes through `resolveSlotLabel`, so a thunk works and can be locale-bound.
+
+Two caveats: the slot is `scope: "session"`, and the view area is not rendered for a
+blank session (`if (session.blank && …) return null`), so the tab appears once a
+session has content.
+
+There is no slot for a *new top-level URL route* — you cannot add a path to the
+shell. `conversation.view` is the full-area surface, so that distinction rarely
+matters: this is where a "page" belongs in this app.
 
 ## 4. Talking to the host
 
