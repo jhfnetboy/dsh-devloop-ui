@@ -1,0 +1,8 @@
+# Bundle patch: one loader entry.
+#
+# The host half registers nothing; the entry exists so that `dsh-client-modules`
+# finds a package declaring `dsh.client` in the Loader's entries and serves its
+# browser half. Without this row the client bundle has no row to attach to.
+- insert:
+    - id: dsh-devloop-ui
+      name: dsh-devloop-ui
